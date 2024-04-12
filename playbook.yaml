@@ -1,0 +1,103 @@
+- name: Lab 3 both hosts
+  hosts: all
+  tasks:
+  - name: install wget on both hosts
+    become: true
+    package:
+      name: wget
+      state: present
+      update_cache: true
+  - name: install unzip on host-b
+    become: yes
+    package:
+      name: unzip
+      state: present
+      update_cache: true
+    when: ansible_host == '18.171.237.35'
+  - name: install nginx on host-a
+    become: true
+    package:
+      name: nginx
+      state: present
+      update_cache: true
+    register: installingNginx
+    when: ansible_host == '13.40.85.121'
+  - name: uninstall unzip on both hosts
+    become: yes
+    package:
+      name: unzip
+      state: absent
+      update_cache: true
+ 
+- name: Running on vm02
+  hosts: VM02 
+  become: true 
+  tasks:
+  - name: install nginx on host-b
+    package:
+      name: nginx
+      state: present
+      update_cache: true
+  - name: Replace the default HTML with a new HTML stored in the Ansible EC2
+    copy:
+      src: /var/www/html/index.nginx-debian.html
+      dest: /var/www/html/index.nginx-debian.html
+  - name: Print out the JSON object of installing nginx
+    debug:
+      var: installingNginx
+  - name: Restart the nginx service
+    service:
+      name: nginx
+      state: restarted
+
+- name: Running on vm01
+  hosts: VM01
+  become: yes
+  tasks:
+  - name: Install prerequisites for Docker repo
+    apt:
+      name:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - software-properties-common
+      state: latest
+      update_cache: true
+  - name: Add Docker GPG key
+    apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+
+  - name: Add Docker APT repository
+    apt_repository:
+        repo: deb https://download.docker.com/linux/ubuntu focal stable
+
+  - name: Install Docker CE
+    apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        update_cache: yes
+
+  - name: Install prerequisites for docker-compose
+    apt:
+        name:
+          - python3-pip
+          - python3-setuptools
+          - virtualenv
+
+  - name: Install docker-compose
+    pip:
+        name: docker-compose
+
+  - name: Ensure Docker is started
+    service:
+        name: docker
+        state: started
+
+- name: Install docker on vm02
+  hosts: VM02
+  become: true
+  tasks:
+    - name: Install docker on vm02
+      shell: curl https://get.docker.com | sudo bash
